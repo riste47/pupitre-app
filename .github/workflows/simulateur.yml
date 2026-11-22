@@ -1,0 +1,33 @@
+# Jalon 1 : compile Pupitre pour le simulateur iPhone ET iPad sur un Mac de GitHub, puis filme l'app (vidéo + captures).
+# Résultat : onglet « Actions » › dernier passage › « Artifacts » › pupitre-apercu (vidéos .mp4 + captures .png).
+name: Aperçu simulateur
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  apercu:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Outils
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+      - name: Générer le projet Xcode
+        run: xcodegen generate
+      - name: Compiler pour le simulateur
+        run: |
+          set -o pipefail
+          xcodebuild -project Pupitre.xcodeproj -scheme Pupitre -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -40
+      - name: Filmer sur iPhone et iPad
+        run: bash scripts/record.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pupitre-apercu
+          path: out/
+          if-no-files-found: warn
