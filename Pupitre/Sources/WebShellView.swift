@@ -43,6 +43,7 @@ struct WebView: UIViewRepresentable {
         NativeBio.install(on: cfg)                       // 0.2.2 : Face ID du verrou des Réglages (trousseau protégé par Face ID)
         let w = WKWebView(frame: .zero, configuration: cfg)
         w.navigationDelegate = context.coordinator
+        w.uiDelegate = context.coordinator               // 0.2.2 : confirm()/alert()/prompt() de Pupitre (ex. « Se déconnecter ») fonctionnent
         w.allowsBackForwardNavigationGestures = true
         w.isOpaque = false
         w.backgroundColor = .clear
@@ -58,7 +59,7 @@ struct WebView: UIViewRepresentable {
         return w
     }
     func updateUIView(_ w: WKWebView, context: Context) {}
-    final class Coord: NSObject, WKNavigationDelegate {
+    final class Coord: NSObject, WKNavigationDelegate, WKUIDelegate {
         let parent: WebView
         weak var web: WKWebView?
         init(_ p: WebView) { parent = p }
@@ -67,6 +68,40 @@ struct WebView: UIViewRepresentable {
         func webView(_ w: WKWebView, didFinish n: WKNavigation!) { parent.loading = false; parent.failed = nil }
         func webView(_ w: WKWebView, didFail n: WKNavigation!, withError e: Error) { fail(e) }
         func webView(_ w: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError e: Error) { fail(e) }
+        // 0.2.2 : sans ces 3 fonctions, une vue web d'app ignore les fenêtres de Pupitre : confirm() répond toujours « non »
+        // (le bouton « Se déconnecter » et ~70 autres confirmations ne faisaient rien).
+        private func present(_ a: UIAlertController) -> Bool {
+            guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first,
+                  var top = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return false }
+            while let p = top.presentedViewController { top = p }
+            if let pop = a.popoverPresentationController, let v = web { pop.sourceView = v; pop.sourceRect = CGRect(x: v.bounds.midX, y: v.bounds.midY, width: 1, height: 1); pop.permittedArrowDirections = [] }
+            top.present(a, animated: true); return true
+        }
+        func webView(_ w: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+            a.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler() })
+            if !present(a) { completionHandler() }
+        }
+        func webView(_ w: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            let a = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+            a.addAction(UIAlertAction(title: "Annuler", style: .cancel) { _ in completionHandler(false) })
+            a.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler(true) })
+            if !present(a) { completionHandler(false) }
+        }
+        func webView(_ w: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (String?) -> Void) {
+            let a = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
+            a.addTextField { $0.text = defaultText }
+            a.addAction(UIAlertAction(title: "Annuler", style: .cancel) { _ in completionHandler(nil) })
+            a.addAction(UIAlertAction(title: "OK", style: .default) { _ in completionHandler(a.textFields?.first?.text ?? "") })
+            if !present(a) { completionHandler(nil) }
+        }
+        // Liens qui s'ouvrent « dans une nouvelle fenêtre » : ouverts dans la même vue (sinon rien ne se passait).
+        func webView(_ w: WKWebView, createWebViewWith c: WKWebViewConfiguration, for a: WKNavigationAction, windowFeatures f: WKWindowFeatures) -> WKWebView? {
+            if a.targetFrame == nil, let u = a.request.url {
+                if let h = u.host, h == w.url?.host { w.load(a.request) } else { UIApplication.shared.open(u) }
+            }
+            return nil
+        }
         private func fail(_ e: Error) {
             parent.loading = false
             if (e as NSError).code == NSURLErrorCancelled { return }
