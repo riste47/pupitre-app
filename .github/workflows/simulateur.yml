@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   apercu:
     runs-on: macos-15
@@ -31,3 +33,11 @@ jobs:
           name: pupitre-apercu
           path: out/
           if-no-files-found: warn
+      - name: Déposer l'aperçu dans la branche « apercu » (lisible sans téléchargement)
+        if: always()
+        run: |
+          cd out
+          git init -q -b apercu
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add -A && git commit -qm "Aperçu ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" apercu
