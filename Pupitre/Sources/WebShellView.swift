@@ -50,9 +50,10 @@ struct WebView: UIViewRepresentable {
         w.scrollView.backgroundColor = .clear
         w.scrollView.contentInsetAdjustmentBehavior = .never   // la page gère l'encoche (env(safe-area-inset-*)), comme en mode web app
         w.pageZoom = 1.0                                        // taille réelle : rien de grossi
-        let refresh = UIRefreshControl()                        // tirer vers le bas pour recharger
-        refresh.addTarget(context.coordinator, action: #selector(Coord.pull(_:)), for: .valueChanged)
-        w.scrollView.refreshControl = refresh
+        // 0.2.3 : plus de rebond élastique (les « bords » qui apparaissaient en défilant) ni de « tirer pour recharger »
+        w.scrollView.bounces = false
+        w.scrollView.alwaysBounceVertical = false
+        w.scrollView.alwaysBounceHorizontal = false
         context.coordinator.web = w
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coord.retry), name: .pupitreReload, object: nil)
         w.load(URLRequest(url: url))
