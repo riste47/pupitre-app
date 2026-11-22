@@ -45,7 +45,12 @@ final class PupitreBridge: NSObject, WKNavigationDelegate {
           return JSON.stringify({ s: r.status, t: t, ct: r.headers.get("content-type") || "" });
         } catch (e) { return JSON.stringify({ s: 0, t: String(e), ct: "" }); }
         """
-        let any = try await web.callAsyncJavaScript(js, arguments: ["p": path], contentWorld: .page)
+        // Version « à rappel » (Objective-C) : la variante async passe par libswiftWebKit, absente des anciens iOS.
+        let any: Any? = try await withCheckedThrowingContinuation { c in
+            web.callAsyncJavaScript(js, arguments: ["p": path], in: nil, in: .page) { r in
+                switch r { case .success(let v): c.resume(returning: v); case .failure(let e): c.resume(throwing: e) }
+            }
+        }
         guard let str = any as? String, let d = str.data(using: .utf8),
               let o = try JSONSerialization.jsonObject(with: d) as? [String: Any],
               let status = o["s"] as? Int, let text = o["t"] as? String else { throw BridgeError.unreachable("réponse illisible") }

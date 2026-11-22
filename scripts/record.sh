@@ -3,7 +3,7 @@
 set -u
 APP=$(find build/Build/Products -name "Pupitre.app" -type d | head -1)
 mkdir -p out
-pick() { xcrun simctl list devices available | grep -E "^\s+$1" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'; }
+pick() { xcrun simctl list devices available | grep -E "^\s+$1" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'; }
 for KIND in "iPhone" "iPad"; do
   UDID=$(pick "$KIND")
   [ -z "$UDID" ] && { echo "Aucun simulateur $KIND"; continue; }
