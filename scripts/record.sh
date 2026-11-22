@@ -18,10 +18,11 @@ for KIND in "iPhone" "iPad"; do
   REC=$!
   sleep 2
   xcrun simctl launch "$UDID" com.riste47.pupitre -tour
-  sleep 4;  xcrun simctl io "$UDID" screenshot "out/$NAME-1-calendrier.png"
+  sleep 2;  xcrun simctl io "$UDID" screenshot "out/$NAME-1-calendrier.png"
   sleep 4;  xcrun simctl io "$UDID" screenshot "out/$NAME-2-fiche.png"
-  sleep 10; xcrun simctl io "$UDID" screenshot "out/$NAME-3-reglages.png"
-  sleep 4
+  sleep 5;  xcrun simctl io "$UDID" screenshot "out/$NAME-3-a-pourvoir.png"
+  sleep 6;  xcrun simctl io "$UDID" screenshot "out/$NAME-4-reglages.png"
+  sleep 6
   kill -INT $REC; wait $REC 2>/dev/null
   xcrun simctl shutdown "$UDID" || true
 done

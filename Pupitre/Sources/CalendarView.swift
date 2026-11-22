@@ -14,6 +14,11 @@ struct CalendarView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    if let n = model.notice {
+                        Label(n, systemImage: "info.circle.fill")
+                            .font(.footnote).padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    }
                     SummaryStrip(talks: model.talks)
                     FilterBar(filter: $filter)
                     LazyVGrid(columns: columns, spacing: 14) {
@@ -21,12 +26,15 @@ struct CalendarView: View {
                             TalkCard(talk: t).onTapGesture { selected = t }
                         }
                     }
-                    Text("Prototype · données de démonstration")
+                    Text(model.isDemo ? "Prototype · données de démonstration" : "Données en direct de Pupitre")
                         .font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
+            .refreshable { await model.reload() }
+            .overlay(alignment: .top) { if model.loading { ProgressView().padding(.top, 4) } }
+            .onChange(of: model.tab) { _, t in if t == .calendar && model.isDemo && !model.tour { Task { await model.reload() } } }
             .navigationTitle("Calendrier")
             .sheet(item: $selected) { t in TalkDetail(talk: t).presentationDetents([.medium, .large]) }
         }
@@ -61,6 +69,7 @@ struct FilterBar: View {
                 chip("Confirmés", .confirmed)
                 chip("En attente", .pending)
                 chip("À pourvoir", .toFill)
+                chip("À confirmer", .toConfirm)
                 chip("Sorties", .outgoing)
             }
         }

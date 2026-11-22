@@ -19,11 +19,30 @@ enum Theme {
     static let warm = Color(red: 1.0, green: 0.48, blue: 0.0)
 }
 
+@MainActor
 final class AppModel: ObservableObject {
     // Adresse de Pupitre (modifiable dans Réglages). Par défaut : l'accès extérieur Cloudflare.
     @AppStorage("serverURL") var serverURL: String = "https://app.pupitre-agen.com"
     @Published var tab: Tab = .calendar
     @Published var talks: [Talk] = Talk.demo
+    @Published var isDemo = true
+    @Published var notice: String? = nil
+    @Published var loading = false
+    private lazy var bridge = PupitreBridge()
+
+    /// Charge le vrai calendrier depuis le NAS ; en cas d'échec, garde la démonstration et explique pourquoi.
+    @MainActor func reload() async {
+        guard !tour, !loading, let url = URL(string: serverURL) else { return }
+        loading = true; defer { loading = false }
+        do {
+            let data = try await bridge.getJSON("/api/calendar6?months=6", server: url)
+            let list = try Talk.fromCalendar6(data)
+            talks = list; isDemo = false; notice = nil
+        } catch {
+            isDemo = true; talks = Talk.demo
+            notice = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
     /// Lancement avec « -tour » : l'app passe d'elle-même d'un écran à l'autre (pour la vidéo du simulateur).
     let tour = ProcessInfo.processInfo.arguments.contains("-tour")
 
@@ -48,20 +67,21 @@ struct RootView: View {
         .task { await runTourIfNeeded() }
     }
 
+    // Visite automatique pour la vidéo (minutage calé sur scripts/record.sh : captures à 2 s, 6 s, 11 s et 17 s).
     @MainActor private func runTourIfNeeded() async {
-        guard model.tour else { return }
+        guard model.tour else { await model.reload(); return }
         func pause(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
-        await pause(3)
-        selected = model.talks.first(where: { $0.status == .confirmed })
-        await pause(4)
+        await pause(3.5)
+        selected = model.talks.first(where: { $0.status == .confirmed })      // fiche ouverte de 3,5 s à 8 s
+        await pause(4.5)
         selected = nil
         await pause(1.5)
-        selected = model.talks.first(where: { $0.status == .toFill })
+        selected = model.talks.first(where: { $0.status == .toFill })         // de 9,5 s à 13 s
         await pause(3.5)
         selected = nil
         await pause(1.5)
-        withAnimation { model.tab = .settings }
-        await pause(3)
+        withAnimation { model.tab = .settings }                               // de 14,5 s à 20 s
+        await pause(5.5)
         withAnimation { model.tab = .calendar }
     }
 }
