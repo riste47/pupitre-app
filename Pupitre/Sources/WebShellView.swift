@@ -40,6 +40,7 @@ struct WebView: UIViewRepresentable {
         let cfg = WKWebViewConfiguration()
         cfg.websiteDataStore = .default()                 // garde la session (cookies, réglages de la page) entre deux lancements
         cfg.allowsInlineMediaPlayback = true
+        NativeBio.install(on: cfg)                       // 0.2.2 : Face ID du verrou des Réglages (trousseau protégé par Face ID)
         let w = WKWebView(frame: .zero, configuration: cfg)
         w.navigationDelegate = context.coordinator
         w.allowsBackForwardNavigationGestures = true
