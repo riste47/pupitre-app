@@ -67,21 +67,37 @@ struct RootView: View {
         .task { await runTourIfNeeded() }
     }
 
-    // Visite automatique pour la vidéo (minutage calé sur scripts/record.sh : captures à 2 s, 6 s, 11 s et 17 s).
+    // Visite automatique pour la vidéo. Synchronisée avec scripts/record.sh par fichiers-repères dans Documents :
+    // l'app écrit « step-N » quand l'écran N est prêt, le script fait la capture puis écrit « shot-N ».
+    // (Avant : minutage fixe, décalé de plusieurs secondes sur les simulateurs récents → mauvaises captures.)
     @MainActor private func runTourIfNeeded() async {
         guard model.tour else { await model.reload(); return }
         func pause(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
-        await pause(3.5)
-        selected = model.talks.first(where: { $0.status == .confirmed })      // fiche ouverte de 3,5 s à 8 s
-        await pause(4.5)
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
+        for f in (try? FileManager.default.contentsOfDirectory(atPath: docs.path)) ?? [] where f.hasPrefix("step-") || f.hasPrefix("shot-") {
+            try? FileManager.default.removeItem(at: docs.appendingPathComponent(f))
+        }
+        func step(_ n: Int) async {                       // écran prêt → attendre la capture (12 s max), 2 s mini pour la vidéo
+            await pause(1.2)
+            try? Data().write(to: docs.appendingPathComponent("step-\(n)"))
+            let shot = docs.appendingPathComponent("shot-\(n)").path
+            var waited = 0.0
+            while !FileManager.default.fileExists(atPath: shot) && waited < 12 { await pause(0.25); waited += 0.25 }
+            await pause(0.8)
+        }
+        await step(1)                                                          // calendrier
+        selected = model.talks.first(where: { $0.status == .confirmed })
+        await step(2)                                                          // fiche orateur
         selected = nil
-        await pause(1.5)
-        selected = model.talks.first(where: { $0.status == .toFill })         // de 9,5 s à 13 s
-        await pause(3.5)
+        await pause(0.8)
+        selected = model.talks.first(where: { $0.status == .toFill })
+        await step(3)                                                          // samedi à pourvoir
         selected = nil
-        await pause(1.5)
-        withAnimation { model.tab = .settings }                               // de 14,5 s à 20 s
-        await pause(5.5)
+        await pause(0.8)
+        withAnimation { model.tab = .settings }
+        await step(4)                                                          // réglages
         withAnimation { model.tab = .calendar }
     }
+}
 }

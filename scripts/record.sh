@@ -20,11 +20,16 @@ for KIND in "iPhone" "iPad"; do
   REC=$!
   sleep 2
   xcrun simctl launch "$UDID" com.riste47.pupitre -tour > "out/$NAME-launch.txt" 2>&1
-  sleep 2;  xcrun simctl io "$UDID" screenshot "out/$NAME-1-calendrier.png"
-  sleep 4;  xcrun simctl io "$UDID" screenshot "out/$NAME-2-fiche.png"
-  sleep 5;  xcrun simctl io "$UDID" screenshot "out/$NAME-3-a-pourvoir.png"
-  sleep 6;  xcrun simctl io "$UDID" screenshot "out/$NAME-4-reglages.png"
-  sleep 6
+  DOCS="$(xcrun simctl get_app_container "$UDID" com.riste47.pupitre data)/Documents"
+  N=1
+  for SHOT in 1-calendrier 2-fiche 3-a-pourvoir 4-reglages; do   # l'app signale chaque écran prêt (step-N)
+    for i in $(seq 1 120); do [ -f "$DOCS/step-$N" ] && break; sleep 0.25; done
+    [ -f "$DOCS/step-$N" ] || echo "⚠︎ $KIND : écran $N non signalé (capture quand même)"
+    xcrun simctl io "$UDID" screenshot "out/$NAME-$SHOT.png"
+    touch "$DOCS/shot-$N"
+    N=$((N+1))
+  done
+  sleep 3
   kill -INT $REC; wait $REC 2>/dev/null
   xcrun simctl spawn "$UDID" log show --last 2m --style compact --predicate 'process == "Pupitre"' > "out/$NAME-log.txt" 2>&1 || true
   cp ~/Library/Logs/DiagnosticReports/Pupitre* out/ 2>/dev/null || true
