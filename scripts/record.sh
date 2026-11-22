@@ -3,7 +3,9 @@
 set -u
 APP=$(find build/Build/Products -name "Pupitre.app" -type d | head -1)
 mkdir -p out
-pick() { xcrun simctl list devices available | grep -E "^\s+$1" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'; }
+pick() { # le runtime iOS le plus récent ; de préférence un modèle « Pro » (iPhone) ou « Pro 11 » (iPad)
+  xcrun simctl list devices available -j | jq -r --arg k "$1" '.devices | to_entries | map(select(.key|test("iOS"))) | sort_by(.key|capture("iOS-(?<a>[0-9]+)-(?<b>[0-9]+)")|[(.a|tonumber),(.b|tonumber)]) | last | .value | (map(select(.name|startswith($k)) | select(.name|test("Pro"))) + map(select(.name|startswith($k)))) | .[0].udid // empty'
+}
 for KIND in "iPhone" "iPad"; do
   UDID=$(pick "$KIND")
   [ -z "$UDID" ] && { echo "Aucun simulateur $KIND"; continue; }
