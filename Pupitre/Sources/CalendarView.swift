@@ -34,7 +34,7 @@ struct CalendarView: View {
             .background(Color(.systemGroupedBackground))
             .refreshable { await model.reload() }
             .overlay(alignment: .top) { if model.loading { ProgressView().padding(.top, 4) } }
-            .onChange(of: model.tab) { _, t in if t == .calendar && model.isDemo && !model.tour { Task { await model.reload() } } }
+            .onChange(of: model.tab) { _, t in if t == .calendar && model.talks.isEmpty && !model.tour { Task { await model.reload() } } }
             .navigationTitle("Calendrier")
             .sheet(item: $selected) { t in TalkDetail(talk: t).presentationDetents([.medium, .large]) }
         }

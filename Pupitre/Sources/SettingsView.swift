@@ -16,7 +16,7 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Section("À propos") {
-                    LabeledContent("Version", value: "0.1.0 · prototype")
+                    LabeledContent("Version", value: "0.2.0 · prototype")
                     LabeledContent("Écrans natifs", value: "Calendrier")
                 }
             }

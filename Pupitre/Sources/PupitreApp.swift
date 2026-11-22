@@ -24,8 +24,9 @@ final class AppModel: ObservableObject {
     // Adresse de Pupitre (modifiable dans Réglages). Par défaut : l'accès extérieur Cloudflare.
     @AppStorage("serverURL") var serverURL: String = "https://app.pupitre-agen.com"
     @Published var tab: Tab = .calendar
-    @Published var talks: [Talk] = Talk.demo
-    @Published var isDemo = true
+    // Plus aucune donnée inventée dans l'app installée : la démonstration ne sert qu'au film du simulateur (-tour).
+    @Published var talks: [Talk] = ProcessInfo.processInfo.arguments.contains("-tour") ? Talk.demo : []
+    @Published var isDemo = ProcessInfo.processInfo.arguments.contains("-tour")
     @Published var notice: String? = nil
     @Published var loading = false
     private lazy var bridge = PupitreBridge()
@@ -39,7 +40,7 @@ final class AppModel: ObservableObject {
             let list = try Talk.fromCalendar6(data)
             talks = list; isDemo = false; notice = nil
         } catch {
-            isDemo = true; talks = Talk.demo
+            isDemo = false; talks = []
             notice = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -52,7 +53,13 @@ final class AppModel: ObservableObject {
 struct RootView: View {
     @EnvironmentObject var model: AppModel
     @State private var selected: Talk?
+    // Par défaut : Pupitre plein écran, exactement comme la version web (sa propre barre d'onglets, ses couleurs).
+    // Les écrans natifs (Calendrier natif, Réglages de l'app) restent en préparation et ne s'affichent que pour le film (-tour).
+    @AppStorage("nativeScreens") private var nativeScreens = false
     var body: some View {
+        if model.tour || nativeScreens { tabs } else { WebShellView() }
+    }
+    private var tabs: some View {
         TabView(selection: $model.tab) {
             CalendarView(selected: $selected)
                 .tabItem { Label("Calendrier", systemImage: "calendar") }
