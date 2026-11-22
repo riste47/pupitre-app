@@ -19,6 +19,13 @@ jobs:
           xcodebuild -version
       - name: Générer le projet Xcode
         run: xcodegen generate
+      - name: Déposer le projet Xcode prêt à ouvrir dans la branche « xcode » (installation sur iPhone/iPad via le Mac)
+        run: |
+          rm -rf /tmp/x && mkdir /tmp/x && cp -R Pupitre Pupitre.xcodeproj project.yml README.md /tmp/x/
+          cd /tmp/x && git init -q -b xcode
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add -A && git commit -qm "Projet Xcode ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" xcode
       - name: Compiler pour le simulateur
         run: |
           set -o pipefail
