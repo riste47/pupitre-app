@@ -100,4 +100,3 @@ struct RootView: View {
         withAnimation { model.tab = .calendar }
     }
 }
-}
